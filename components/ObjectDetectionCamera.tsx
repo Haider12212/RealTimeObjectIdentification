@@ -30,6 +30,7 @@ const WebcamComponent: React.FC<WebcamComponentProps> = (props) => {
   const webcamRef = useRef<Webcam>(null);
   const videoCanvasRef = useRef<HTMLCanvasElement>(null);
   const imageCanvasRef = useRef<HTMLCanvasElement>(null);
+  const processedImageCanvasRef = useRef<HTMLCanvasElement>(null);
   const liveDetection = useRef<boolean>(false);
   const [facingMode, setFacingMode] = useState<string>("environment");
   const originalSize = useRef<[number, number]>([0, 0]);
@@ -156,7 +157,6 @@ const WebcamComponent: React.FC<WebcamComponentProps> = (props) => {
   };
 
   const processImage = async () => {
-    reset();
     const ctx = capture();
     if (!ctx) return;
 
@@ -180,7 +180,7 @@ const WebcamComponent: React.FC<WebcamComponentProps> = (props) => {
     setTotalTime(0);
     setCheckList([]);
     setUploadedImage(null);
-    startWebcam();
+    uploadedImage && setUploadedImage(null);
   };
 
   const handleImageUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -189,7 +189,6 @@ const WebcamComponent: React.FC<WebcamComponentProps> = (props) => {
       const reader = new FileReader();
       reader.onload = (event) => {
         setUploadedImage(event.target?.result as string);
-        stopWebcam();
       };
       reader.readAsDataURL(file);
     }
@@ -197,28 +196,34 @@ const WebcamComponent: React.FC<WebcamComponentProps> = (props) => {
 
   const processUploadedImage = async () => {
     if (!uploadedImage) return;
+  
     const img = new Image();
     img.src = uploadedImage;
+  
     img.onload = async () => {
       const canvas = imageCanvasRef.current!;
       const ctx = canvas.getContext("2d")!;
-      canvas.width = videoCanvasRef.current!.width;
-      canvas.height = videoCanvasRef.current!.height;
-      ctx.drawImage(img, 0, 0, canvas.width, canvas.height);
-      await runModel(ctx);
+      canvas.width = img.width;
+      canvas.height = img.height;
+      ctx.drawImage(img, 0, 0, img.width, img.height);
+  
+      // Run model on the uploaded image
+  
+      // Draw the processed image onto the image canvas
+      const processedCanvas = processedImageCanvasRef.current!;
+      const processedCtx = processedCanvas.getContext("2d")!;
+      processedCanvas.width = canvas.width;
+      processedCanvas.height = canvas.height;
+      processedCtx.drawImage(canvas, 0, 0, canvas.width, canvas.height);
+      await runModel(processedCtx);
+      if (detectedItems.length === 0) {
+        alert("No items detected.");
+      }
+
     };
   };
-
-  const stopWebcam = () => {
-    const stream = webcamRef.current?.video?.srcObject as MediaStream;
-    if (stream) {
-      stream.getTracks().forEach((track) => track.stop());
-    }
-  };
-
-  const startWebcam = () => {
-    webcamRef.current?.video?.play();
-  };
+  
+  
 
   const [SSR, setSSR] = useState<boolean>(true);
 
@@ -286,13 +291,7 @@ const WebcamComponent: React.FC<WebcamComponentProps> = (props) => {
             zIndex: uploadedImage ? 1 : 2,
           }}
         ></canvas>
-        {uploadedImage && (
-          <canvas
-            id="cv2"
-            ref={imageCanvasRef}
-            style={{ position: "absolute", top: 0, left: 0, zIndex: 3 }}
-          ></canvas>
-        )}
+        
       </div>
       <div className="flex flex-col justify-center items-center">
         <div className="flex gap-1 flex-row flex-wrap justify-center items-center m-5">
@@ -405,16 +404,47 @@ const WebcamComponent: React.FC<WebcamComponentProps> = (props) => {
           </button>
         </div>
         <div className="flex flex-col items-center mt-4">
-          <input type="file" accept="image/*" onChange={handleImageUpload} />
-          {uploadedImage && (
-            <button
-              onClick={processUploadedImage}
-              className="mt-2 bg-blue-500 hover:bg-blue-700 text-white font-bold py-2 px-4 rounded z-50"
-            >
-              Process Uploaded Image
-            </button>
-          )}
-        </div>
+  <input type="file" accept="image/*" onChange={handleImageUpload} />
+  {uploadedImage && (
+    <>
+      <div style={{ position: "relative" }}>
+        <canvas
+          id="uploadedImageCanvas"
+          ref={imageCanvasRef}
+          width={320} // Set the width of the canvas
+          height={240} // Set the height of the canvas
+          style={{
+            border: "1px solid #000",
+            marginTop: "10px",
+            display: "block",
+          }}
+        ></canvas>
+        <canvas
+          id="processedImageCanvas"
+          ref={processedImageCanvasRef}
+          width={320} // Set the width of the canvas
+          height={240} // Set the height of the canvas
+          style={{
+            position: "absolute",
+            top: 0,
+            left: 0,
+            border: "1px solid #000",
+            marginTop: "10px",
+            display: "block",
+          }}
+        ></canvas>
+      </div>
+      <button
+        onClick={processUploadedImage}
+        className="mt-2 bg-blue-500 hover:bg-blue-700 text-white font-bold py-2 px-4 rounded"
+      >
+        Process Uploaded Image
+      </button>
+    </>
+  )}
+</div>
+
+
       </div>
     </div>
   );
