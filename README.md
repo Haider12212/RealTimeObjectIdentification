@@ -67,8 +67,6 @@ This project can be deployed to a web server for public access. For more informa
 ## Contributing
 If you want to contribute to this project, please feel free to submit a pull request. Any contributions, big or small, are greatly appreciated!
 
-## Authors
-Juan Sebastian - Initial work - [@juanjaho](https://github.com/juanjaho)
 
 ## License
 This project is licensed under the GNU General Public License v3.0 - see the [LICENSE](LICENSE.md) file for details.
